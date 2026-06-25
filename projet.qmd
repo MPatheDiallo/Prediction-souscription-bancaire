@@ -1,0 +1,494 @@
+---
+title: "Peut-on prédire la souscription d’un client à un dépôt à terme bancaire à partir de ses caractéristiques socio-démographiques, comportementales et macroéconomiques à l’aide de méthodes de Data Mining ?"
+author: "Mamadou Pathé DIALLO"
+format: pdf
+editor: visual
+---
+
+## 1. Introduction et question de recherche
+
+### Le marketing bancaire repose sur la capacité à cibler efficacement les clients susceptibles de souscrire à un produit financier. Les campagnes de prospection de masse étant coûteuses et peu performantes, la prédiction de la probabilité de souscription constitue un enjeu stratégique majeur.
+
+**Question de recherche :**\
+*Peut-on prédire la souscription d’un client à un dépôt à terme à partir de ses caractéristiques socio-démographiques, comportementales et macroéconomiques à l’aide de méthodes de Data Mining ?*
+
+**Objectifs :** Construire et comparer des modèles de classification ; Identifier les facteurs influençant la souscription ; Évaluer la performance prédictive des méthodes utilisées.
+
+## 2. Contexte et motivations de l’étude
+
+Les banques disposent d’un large volume de données clients : profil socio-démographique, comportement d’interaction, historique de contact, et indicateurs macroéconomiques. L’exploitation de ces informations est cruciale pour optimiser les actions commerciales, augmenter le taux de conversion et réduire les interventions inutiles.
+
+Le problème relève d’une classification binaire déséquilibrée, typique des campagnes marketing où seule une minorité de clients souscrit. Il s’agit donc d’un cas représentatif pour comparer modèles interprétables (régression logistique) et modèles performants mais moins transparents (Random Forest).
+
+## 3. Présentation des données utilisées
+
+Les données proviennent du jeu de données *Bank Marketing* mis à disposition par la plateforme UCI Machine Learning Repository via le lien suivant : [Bank Marketing - UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/222/bank+marketing)
+
+```{r setup, include=FALSE}
+#| echo: false
+#| warning: false
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  comment = " ",
+  warning = FALSE,
+  results = "hold"
+)
+
+# Chargement des packages
+library(knitr)
+library(corrplot)
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(stringr)
+library(janitor)
+library(skimr)
+library(tibble)
+
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+
+# 1. Chargement des données
+data <- read.csv("C:/Users/mdiallo37/Desktop/M2 EES/DRIVE M2 EES/Partie 2/Datamining/Projet data mining/bank-additional-full.csv", sep = ";", stringsAsFactors = FALSE)
+
+
+# 2. Conversion des variables catégorielles en facteurs
+data$job        <- as.factor(data$job)
+data$marital    <- as.factor(data$marital)
+data$education  <- as.factor(data$education)
+data$default    <- as.factor(data$default)
+data$housing    <- as.factor(data$housing)
+data$loan       <- as.factor(data$loan)
+data$contact    <- as.factor(data$contact)
+data$month      <- as.factor(data$month)
+data$day_of_week<- as.factor(data$day_of_week)
+data$poutcome   <- as.factor(data$poutcome)
+data$y          <- as.factor(data$y)
+
+summary(data)
+
+
+
+
+```
+
+### **3.1 Description des variables**
+
+Les données proviennent du **Bank Marketing Dataset** (UCI Machine Learning Repository) et contiennent **41 188 observations et 21 variables**, réparties en trois catégories :
+
+✔ Socio-démographiques : âge, profession, état civil, niveau d’éducation, prêts et défauts de paiement.
+
+✔ Variables liées à la campagne : durée du dernier appel, type de contact, mois/jour du contact, nombre de contacts, résultat des campagnes précédentes.
+
+✔ Variables macroéconomiques : taux d’emploi, indice des prix, taux interbancaire (euribor3m), confiance des consommateurs, nombre de salariés. La variable cible y indique *yes* ou *no* selon la souscription
+
+### 3.2 Analyse exploratoire
+
+```{r, out.width="40%"}
+#| echo: false
+#| warning: false
+
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+
+# 1. Distribution de la variable cible
+ggplot(data, aes(x = y, fill = y)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Répartition des Dépôts (yes/no)") +
+  theme_minimal()
+
+
+```
+
+Le graphique montre une répartition très déséquilibrée de la variable cible : la grande majorité des clients n’a pas souscrit au dépôt à terme, tandis que seuls quelques-uns ont effectivement souscrit. Ce déséquilibre est typique des campagnes de marketing direct, où le taux de conversion est faible. D’un point de vue méthodologique, cela signifie qu’un modèle peut obtenir une bonne accuracy simplement en prédisant systématiquement « no », sans réellement détecter les souscripteurs, ce qui impose d’utiliser des indicateurs adaptés et des méthodes capables de traiter le déséquilibre des classes.
+
+```{r, fig.width=3, fig.height=3}
+
+#| echo: false
+#| warning: false
+
+ggplot(data, aes(x = y, y = duration, fill = y)) +
+  geom_boxplot() +
+  labs(title = "Durée d'appel selon la souscription (y)", x = "Souscription", y = "Durée (secondes)") +
+  theme_minimal()
+
+
+library(dplyr)
+
+
+
+poutcome_y <- data %>%
+  count(poutcome, y) %>%
+  group_by(poutcome) %>%
+  mutate(pct = 100 * n / sum(n)) %>%
+  ungroup()
+
+ggplot(poutcome_y, aes(x = poutcome, y = pct, fill = y)) +
+  geom_col() +
+  labs(title = "Répartition de y selon le résultat précédent (en %)", x = "Poutcome", y = "Pourcentage") +
+  theme_minimal()
+
+```
+
+Le boxplot de la durée du dernier appel met en évidence une différence nette entre les deux groupes. Les clients ayant souscrit présentent des durées d’appel nettement plus élevées que ceux n’ayant pas souscrit, tant en termes de médiane que de dispersion. Cette observation suggère une forte association entre la durée du contact et la probabilité de souscription. Néanmoins, cette relation doit être interprétée avec prudence, car la durée de l’appel est observée après l’interaction commerciale et peut introduire une fuite d’information dans un cadre de prédiction ex ante.
+
+Le graphique relatif au résultat de la campagne précédente montre un contraste particulièrement marqué. Les clients ayant connu un succès lors d’une campagne antérieure présentent une probabilité de souscription très élevée lors de la campagne étudiée. À l’inverse, les clients pour lesquels la campagne précédente s’est soldée par un échec ou pour lesquels aucune campagne antérieure n’a eu lieu affichent des taux de souscription nettement plus faibles. Ce résultat met en évidence le fort pouvoir prédictif de la variable `poutcome`.
+
+L’analyse bivariée montre que deux variables discriminent clairement les souscripteurs des non-souscripteurs : la durée de l’appel, nettement plus élevée chez les clients qui souscrivent, et le résultat de la campagne précédente, avec un taux de conversion très fort chez ceux ayant déjà répondu positivement. Ces deux facteurs révèlent des comportements distincts et confirment que la décision de souscription dépend à la fois de la qualité de l’interaction commerciale et de l’historique du client.
+
+#### Matrice de corrélation
+
+```{r, fig.width=3, fig.height=3}
+#| echo: false
+#| warning: false
+
+# Packages
+library(corrplot)
+
+# Copie du dataframe
+df_numeric_analysis <- data
+
+# Conversion de la variable cible en numérique
+df_numeric_analysis$y_num <- ifelse(df_numeric_analysis$y == "yes", 1, 0)
+
+# Sélection des variables numériques (base R)
+numeric_cols <- sapply(df_numeric_analysis, is.numeric)
+df_numeric_only <- df_numeric_analysis[, numeric_cols]
+
+# Matrice de corrélation
+correlation_matrix <- cor(df_numeric_only, use = "complete.obs")
+
+# Heatmap de corrélation
+corrplot(
+  correlation_matrix,
+  method = "color",
+  type = "upper",
+  tl.cex = 0.8,
+  number.cex = 0.7,
+  col = colorRampPalette(c("blue", "white", "red"))(200)
+)
+
+```
+
+La matrice de corrélation montre que plusieurs variables macroéconomiques sont très fortement corrélées entre elles, ce qui indique une forte redondance d’information et un risque de multicolinéarité, particulièrement problématique pour des modèles linéaires comme la régression logistique. La seule corrélation notable avec la variable cible concerne la durée de l’appel, qui est modérément associée à la souscription, mais doit être utilisée avec prudence en raison d’un risque de fuite d’information. Les autres variables numériques présentent des corrélations faibles avec la cible, ce qui confirme que la souscription résulte d’une combinaison de facteurs plutôt que d’un seul indicateur isolé. Ces constats renforcent la nécessité d’un prétraitement rigoureux et de méthodes de Data Mining capables de capturer des relations complexes.
+
+## 4. Modélisation et résultats
+
+Deux méthodes de classification supervisée sont mobilisées :\
+
+– la régression logistique, en tant que modèle de référence interprétable, adapté à une variable cible binaire et permettant d’identifier les déterminants de la souscription ;\
+
+– la forêt aléatoire (Random Forest), en tant que méthode non paramétrique, robuste aux relations non linéaires, aux interactions complexes et au grand nombre de variables, particulièrement adaptée à un contexte de données hétérogènes et de classes déséquilibrées.
+
+### 4.1 Modèle de Regression logistique
+
+#### Entraînement de la régression logistique
+
+```{r, out.width="40%"}
+#| echo: false
+#| warning: false
+
+df <- data
+
+# Garder y comme facteur "no/yes"
+y <- factor(df$y)
+
+# Encoder uniquement X
+X <- df[, names(df) != "y"]
+X[] <- lapply(X, function(x) {
+  if (is.character(x) || is.factor(x)) as.numeric(as.factor(x)) else x
+})
+
+# Split
+set.seed(42)
+idx <- sample(seq_len(nrow(X)), size = 0.5 * nrow(X))
+
+X_train <- X[idx, ]
+X_test  <- X[-idx, ]
+y_train <- y[idx]
+y_test  <- y[-idx]
+
+train_rf <- data.frame(X_train, y = y_train)
+test_rf  <- data.frame(X_test,  y = y_test)
+
+# Régression logistique (modèle de référence)
+logit_model <- glm(
+  y ~ .,
+  data = train_rf,
+  family = binomial(link = "logit")
+)
+
+# Résumé du modèle
+summary(logit_model)
+
+```
+
+La logit montre des effets significatifs pour : **âge** (effet positif modéré), **éducation** (effet positif), **défaut de paiement** (effet négatif fort), **month, contact, campaign, pdays** (effets négatifs), **poutcome** (effet positif fort), **duration** (impact très élevé).
+
+### Performance globale
+
+-   **Accuracy : 90,8 % et AUC : 0,926**, àn a une bonne discrimination globale mais une faible détection des souscripteurs (classe minoritaire). La logit est interprétable mais limitée par le déséquilibre de classes et la multicolinéarité.
+
+#### Courbe ROC et AUC – Régression logistique
+
+```{r, fig.width=3, fig.height=3}
+#| echo: false
+#| warning: false
+library(pROC)
+
+#Logit 
+logit_model <- glm(y ~ ., data = train_rf, family = binomial()) 
+y_prob_logit <- predict(logit_model, newdata = test_rf, type = "response") 
+y_pred_logit <- ifelse(y_prob_logit > 0.5, "yes", "no") 
+y_pred_logit <- factor(y_pred_logit, levels = levels(test_rf$y))
+
+# Courbe ROC
+roc_logit <- roc(
+  response = test_rf$y,
+  predictor = y_prob_logit,
+  levels = rev(levels(test_rf$y))
+)
+
+# AUC
+auc(roc_logit)
+
+#Visualisation de la courbe
+ggplot(data.frame(
+  tpr = roc_logit$sensitivities,
+  fpr = 1 - roc_logit$specificities
+), aes(x = fpr, y = tpr)) +
+  geom_line(color = "darkblue", size = 1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+  labs(
+    title = paste("Courbe RL (AUC =", 
+                  round(auc(roc_logit), 3), ")"),
+    x = "1 - Spécificité",
+    y = "Sensibilité"
+  ) +
+  theme_minimal()
+
+
+```
+
+Dans le graphique présenté, la courbe ROC se situe nettement au-dessus de la diagonale correspondant à une classification aléatoire et adopte une forme concave, proche du coin supérieur gauche. Cette configuration indique que le modèle est capable d’atteindre des niveaux élevés de sensibilité pour des taux relativement faibles de faux positifs, traduisant une bonne capacité de discrimination.
+
+L’aire sous la courbe (**AUC**) est égale à **0,9265**, ce qui correspond à une **excellente performance discriminante**. Concrètement, cette valeur signifie qu’il existe une probabilité d’environ **92,65 %** pour que le modèle attribue une probabilité de souscription plus élevée à un client ayant effectivement souscrit qu’à un client n’ayant pas souscrit. Cette performance est nettement supérieure à celle d’un modèle aléatoire (AUC = 0,5) et confirme la pertinence de la régression logistique pour ce problème de classification.
+
+Ces résultats complètent l’analyse fondée sur la matrice de confusion et l’accuracy. Bien que la régression logistique présente une capacité limitée à détecter la classe minoritaire au seuil de classification retenu, la valeur élevée de l’AUC montre que le modèle classe correctement les individus en termes de probabilité de souscription. Cela suggère qu’un ajustement du seuil de décision pourrait améliorer la détection des souscripteurs sans dégrader excessivement la performance globale.
+
+### 4.2 Modèle Random Forest
+
+```{r}
+#| echo: false
+#| warning: false
+
+# 1. Copie propre du jeu de données
+df_final <- data
+
+# 2. Encodage des variables catégorielles
+# (équivalent de LabelEncoder : texte -> numérique)
+df_final[] <- lapply(df_final, function(x) {
+  if (is.character(x) || is.factor(x)) {
+    as.numeric(as.factor(x))
+  } else {
+    x
+  }
+})
+
+# 3. Séparation des variables explicatives (X) et de la cible (y)
+X <- df_final[, names(df_final) != "y"]
+y <- df_final$y
+
+# 4. Division en jeu d'entraînement (50 %) et de test (50 %)
+set.seed(42)  # reproductibilité
+n <- nrow(df_final)
+train_index <- sample(seq_len(n), size = 0.5 * n)
+
+X_train <- X[train_index, ]
+X_test  <- X[-train_index, ]
+
+y_train <- y[train_index]
+y_test  <- y[-train_index]
+
+# 5. Vérifications
+cat("Prétraitement terminé.\n")
+cat("Nombre de variables utilisées pour l'entraînement :", ncol(X), "\n")
+cat("Taille du jeu d'entraînement :", nrow(X_train), "\n")
+cat("Taille du jeu de test :", nrow(X_test), "\n")
+
+```
+
+#### Entrainement
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Packages nécessaires
+install.packages("randomForest")
+library(randomForest)
+library(caret)
+library(ggplot2)
+
+# Recombiner X et y pour randomForest
+train_rf <- data.frame(X_train, y = as.factor(y_train))
+test_rf  <- data.frame(X_test,  y = as.factor(y_test))
+
+# Initialisation et entraînement du modèle
+set.seed(42)
+rf_model <- randomForest(
+  y ~ .,
+  data = train_rf,
+  ntree = 100,
+  importance = TRUE
+)
+
+print(rf_model)
+
+```
+
+Le modèle de forêt aléatoire a été entraîné sur l’échantillon d’apprentissage à l’aide de 100 arbres de décision. À chaque division d’un nœud, quatre variables ont été testées aléatoirement, conformément au principe du Random Forest visant à réduire la variance et à améliorer la capacité de généralisation du modèle.
+
+L’erreur estimée **out-of-bag (OOB)** du modèle est de **8,56 %**, ce qui correspond à une précision globale d’environ **91,44 %**. Cette performance indique que le modèle parvient globalement à bien discriminer les clients souscripteurs et non souscripteurs, sans avoir recours à un jeu de validation externe pour cette estimation.
+
+NB : Un découpage équilibré des données a été retenu afin de disposer d'un échantillon de test suffisament large pour évaluer de manière robuste les performances du modèle.
+
+Matrice de confusion
+
+```{r}
+# Packages nécessaires (déjà chargés normalement)
+library(caret)
+library(ggplot2)
+
+# ---------------------------------------------------
+# 1) Prédictions sur le jeu de test
+# ---------------------------------------------------
+y_pred <- predict(rf_model, newdata = test_rf)
+
+# ---------------------------------------------------
+# 2) Matrice de confusion avec caret
+# ---------------------------------------------------
+conf_mat <- confusionMatrix(y_pred, test_rf$y)
+
+# Affichage texte (optionnel)
+conf_mat
+
+# ---------------------------------------------------
+# 3) Conversion en data.frame pour ggplot
+# ---------------------------------------------------
+cm_df <- as.data.frame(conf_mat$table)
+# Colonnes : Prediction | Reference | Freq
+
+# ---------------------------------------------------
+# 4) (Optionnel mais recommandé)
+# Forcer l’ordre d’affichage comme sur ton image
+# ---------------------------------------------------
+cm_df$Reference  <- factor(cm_df$Reference, levels = rev(levels(test_rf$y)))
+cm_df$Prediction <- factor(cm_df$Prediction, levels = levels(test_rf$y))
+
+# ---------------------------------------------------
+# 5) Heatmap de la matrice de confusion (IDENTIQUE)
+# ---------------------------------------------------
+ggplot(cm_df, aes(x = Prediction, y = Reference, fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), color = "white", size = 5) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  labs(
+    title = "Matrice de confusion – Random Forest",
+    x = "Prédiction",
+    y = "Réalité"
+  ) +
+  theme_minimal()
+```
+
+#### Courbe ROC et AUC
+
+```{r, fig.width=3, fig.height=3}
+#| echo: false
+#| warning: false
+
+# Packages nécessaires
+library(pROC)
+library(ggplot2)
+
+# Prédiction des probabilités pour la classe positive
+y_prob <- predict(rf_model, newdata = test_rf, type = "prob")[, 1]
+
+# Construction de la courbe ROC
+roc_obj <- roc(response = test_rf$y,
+               predictor = y_prob,
+               levels = rev(levels(test_rf$y)))
+
+# Calcul de l'AUC
+auc_value <- auc(roc_obj)
+cat("AUC :", auc_value, "\n")
+
+# Visualisation de la courbe ROC
+ggplot(data.frame(
+  tpr = roc_obj$sensitivities,
+  fpr = 1 - roc_obj$specificities
+), aes(x = fpr, y = tpr)) +
+  geom_line(color = "darkred", size = 1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+  labs(
+    title = paste("Courbe RF (AUC =", round(auc_value, 3), ")"),
+    x = "1 - Spécificité (Taux de faux positifs)",
+    y = "Sensibilité (Taux de vrais positifs)"
+  ) +
+  theme_minimal()
+
+```
+
+Dans ce graphique, on voit que la courbe ROC se situe nettement au-dessus de la diagonale représentant une classification aléatoire. Elle est fortement concave et proche du coin supérieur gauche, ce qui traduit une excellente capacité de discrimination du modèle. Pour de faibles niveaux de faux positifs, le modèle parvient déjà à atteindre des niveaux élevés de sensibilité, indiquant qu’il identifie efficacement les clients susceptibles de souscrire.
+
+L’aire sous la courbe (**AUC**) est égale à **0,942**, ce qui correspond à une performance très élevée. Concrètement, cette valeur signifie qu’il existe une probabilité de 94,2 % pour que le modèle attribue un score de probabilité plus élevé à un client ayant effectivement souscrit qu’à un client n’ayant pas souscrit. Une telle valeur confirme que le modèle distingue très efficacement les deux classes, indépendamment du seuil de classification retenu.
+
+## 5. Comparaison des modèles
+
+| Critère                      | Régression Logistique | Random Forest |
+|------------------------------|-----------------------|---------------|
+| Interprétation               | Excellente            | Faible        |
+| Prédiction globale           | Très bonne            | Excellente    |
+| Détection classe minoritaire | Faible                | Meilleure     |
+| Sensibilité au déséquilibre  | Forte                 | Faible        |
+| Sensibilité à la colinéarité | Forte                 | Faible        |
+| AUC                          | 0,926                 | 0,942         |
+
+**Conclusion :** Random Forest est le meilleur modèle pour la prédiction, tandis que la logit reste utile pour l’analyse des déterminants.
+
+## 6. Discussion et limites des modèles
+
+Les résultats montrent que la prédiction de souscription est possible avec un niveau de performance élevé. Les variables les plus déterminantes proviennent des interactions commerciales (duration, poutcome) plus que des caractéristiques individuelles.
+
+### Limites identifiées :
+
+-   Déséquilibre important entre classes ; Multicolinéarité dans les variables macroéconomiques ; La variable duration risque de fausser l’évaluation car observée après l’appel ; Encodage factoriel simplifié pouvant perdre de l’information.
+
+Améliorations possibles : Oversampling ou SMOTE pour équilibrer les classes ; Exclure ou neutraliser la variable duration pour une prédiction ex-ante réelle ; Ajuster le seuil de décision pour optimiser la détection des souscripteurs ; Tester d’autres modèles (XGBoost, Gradient Boosting, SVM).
+
+## **7.Conclusion générale**
+
+Cette étude montre qu’il est possible de prédire la souscription à un dépôt à terme en combinant des méthodes de Data Mining et une analyse approfondie des variables comportementales et macroéconomiques.
+
+La Random Forest se distingue par sa performance et sa robustesse, tandis que la régression logistique permet de comprendre précisément les déterminants de la souscription.
+
+Au-delà des résultats prédictifs, le travail met en évidence l’importance de : maîtriser le déséquilibre des classes, traiter la multicolinéarité, évaluer correctement les variables potentiellement post-dictives.
+
+Les modèles développés peuvent améliorer le ciblage marketing bancaire en réduisant les coûts tout en augmentant la conversion.
+
+## 8. Sources statistiques et bibliographie
+
+**Sources statistiques**\
+– UCI Machine Learning Repository, *Bank Marketing Data Set*.
+
+**Bibliographie**\
+– Breiman, L. (2001). Random Forests. *Machine Learning*.\
+– Hastie, T., Tibshirani, R., Friedman, J. (2009). *The Elements of Statistical Learning*. Springer.
