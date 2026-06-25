@@ -1,93 +1,150 @@
-# 📊 Prédiction de la souscription à un dépôt bancaire par Data Mining
+# 🗺️ Analyse spatiale de l'innovation régionale en Europe
 
-![Python](https://img.shields.io/badge/Python-Data%20Mining-blue)
-![Machine Learning](https://img.shields.io/badge/Machine-Learning-green)
-![Statut](https://img.shields.io/badge/Projet-Terminé-success)
-
----
-
-## 📌 Présentation
-
-Ce projet académique présente une étude de Data Mining consacrée à la prédiction de la souscription d'un client à un dépôt à terme bancaire. À partir d'un jeu de données issu d'une campagne de marketing bancaire, plusieurs modèles de Machine Learning sont développés et comparés afin d'identifier les facteurs influençant la souscription et d'évaluer leurs performances prédictives.
-
-L'objectif est de montrer comment les techniques de Data Mining peuvent améliorer le ciblage des campagnes marketing bancaires.
+![R](https://img.shields.io/badge/R-4.x-blue)
+![Spatial Analysis](https://img.shields.io/badge/Spatial%20Analysis-GIS-success)
+![Quarto](https://img.shields.io/badge/Quarto-Project-blueviolet)
+![Eurostat](https://img.shields.io/badge/Data-Eurostat-orange)
 
 ---
 
-## 🎯 Objectifs
+# 📌 Présentation
 
-- Construire plusieurs modèles de classification.
-- Identifier les facteurs influençant la souscription.
-- Comparer les performances des modèles.
-- Évaluer la capacité prédictive de chaque approche.
+Ce projet académique porte sur l'analyse spatiale des disparités régionales en matière d'innovation au sein de l'Europe à partir des données **NUTS (Nomenclature of Territorial Units for Statistics)**.
 
----
+L'étude mobilise des données économiques, démographiques et technologiques afin d'explorer les relations entre les dépenses en Recherche & Développement (R&D), le nombre de brevets, le PIB régional, le PIB par habitant et le capital humain.
 
-## 📂 Jeu de données
-
-- **Source :** UCI Machine Learning Repository
-- **Nombre d'observations :** 41 188
-- **Nombre de variables :** 21
-
-Le jeu de données décrit les caractéristiques des clients, les interactions commerciales et le contexte macroéconomique d'une campagne de marketing bancaire.
+L'objectif est de mettre en évidence les facteurs associés aux performances régionales en matière d'innovation grâce à des analyses statistiques et cartographiques.
 
 ---
 
-## 🛠 Technologies utilisées
+# 🎯 Objectifs
+
+- Nettoyer et préparer les données régionales NUTS.
+- Réaliser une analyse statistique descriptive.
+- Étudier les distributions des principales variables économiques.
+- Analyser l'évolution temporelle des brevets.
+- Produire des cartes thématiques.
+- Explorer les relations entre innovation, R&D et richesse régionale.
+
+---
+
+# 📂 Jeu de données
+
+**Source : Eurostat**
+
+- Régions européennes (NUTS)
+- 3 924 observations
+- Variables économiques, démographiques et d'innovation
+
+---
+
+# 🛠 Technologies utilisées
 
 - R
 - Quarto (.qmd)
-- Data Mining
-- Régression Logistique
-- Random Forest
+- sf
+- mapsf
+- ggplot2
+- dplyr
+- tidyverse
 
 ---
 
-## 🤖 Modèles étudiés
+# 📊 Analyse exploratoire
 
-- Régression Logistique
-- Random Forest
+Les analyses mettent en évidence une forte hétérogénéité des territoires européens concernant les dépenses de R&D et la production de brevets.
 
-### Résultats
+## Distribution des dépenses de R&D
 
-| Modèle | Accuracy | AUC |
-|---------|----------|-----|
-| Régression Logistique | 90,82 % | 0,926 |
-| Random Forest | 91,14 % | 0,942 |
+![Distribution RD](images/rd_distribution.png)
 
-Le modèle **Random Forest** offre les meilleures performances prédictives grâce à sa capacité à capturer des relations non linéaires et des interactions complexes entre les variables.
+La distribution est fortement asymétrique, traduisant une concentration des investissements en R&D dans un nombre limité de régions européennes.
 
 ---
 
-## 📈 Principaux enseignements
+## Évolution du nombre de brevets (1995–2012)
 
-- Le jeu de données présente un fort déséquilibre entre les classes.
-- Les variables **duration** et **poutcome** sont parmi les plus influentes.
-- La Régression Logistique reste très interprétable.
-- Le Random Forest améliore les performances globales.
+![Evolution brevets](images/patents_evolution.png)
 
----
-
-## 📂 Contenu du dépôt
-
-- `projet.qmd` : code source Quarto
-- `projet_definitif.pdf` : rapport complet
-- `bank-additional-full.csv` : jeu de données (si présent)
+L'évolution temporelle montre une progression globale de l'activité d'innovation, malgré des disparités importantes entre les territoires.
 
 ---
 
-## 📚 Source des données
+# 🗺️ Analyse spatiale
 
-UCI Machine Learning Repository
+## Nombre de brevets par région française
 
-https://archive.ics.uci.edu/ml/datasets/Bank+Marketing
+![Carte Brevets](images/patents_france.png)
+
+Les régions les plus industrialisées concentrent une part importante des dépôts de brevets.
 
 ---
 
-## 👨‍💻 Auteur
+## Dépenses de Recherche & Développement
+
+![Carte RD](images/rd_france.png)
+
+Les investissements en R&D présentent une forte concentration géographique, notamment autour des principaux pôles économiques.
+
+---
+
+## PIB par habitant
+
+![Carte PIB](images/gdp_france.png)
+
+Le PIB par habitant révèle des écarts significatifs entre les régions françaises, mettant en évidence des niveaux de développement économique contrastés.
+
+---
+
+## Innovation et richesse régionale
+
+![PIB et Brevets](images/gdp_patents.png)
+
+Cette analyse met en évidence une relation positive entre le niveau de richesse des régions et leur capacité d'innovation, mesurée par le nombre de brevets.
+
+---
+
+# 📈 Principaux résultats
+
+- Forte concentration spatiale des dépenses de R&D.
+- Les régions les plus développées économiquement concentrent également le plus grand nombre de brevets.
+- Des disparités territoriales importantes existent en matière d'innovation.
+- Les analyses statistiques mettent en évidence des corrélations entre les variables économiques et technologiques.
+
+---
+
+# 📂 Contenu du dépôt
+
+```text
+regional-innovation-spatial-analysis
+│
+├── README.md
+├── DIALLO_NUTS25_2.qmd
+├── DIALLO_NUTS25_2.pdf
+├── data/
+│   └── attributs_nuts.csv
+└── images/
+    ├── rd_distribution.png
+    ├── patents_evolution.png
+    ├── patents_france.png
+    ├── rd_france.png
+    ├── gdp_france.png
+    └── gdp_patents.png
+```
+
+---
+
+# 📚 Source des données
+
+- Eurostat
+- NUTS – Nomenclature of Territorial Units for Statistics
+
+---
+
+# 👨‍💻 Auteur
 
 **Mamadou Pathe DIALLO**
 
-Master 2 Études Économiques et Statistiques
+🎓 Master 2 Études Économiques et Statistiques
 
-Data Analyst | Data Mining | Machine Learning
+📊 Data Analysis | Spatial Data Analysis | GIS | R | Statistics
